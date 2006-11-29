@@ -124,8 +124,10 @@ sub command_help {
 Warezomatic: because being lazy requires effort
 
 Commands:
-  id                  guess to what a show is
-  list                list what shows we're watching
+  id                      guess to what a show is
+  list                    list what shows we're watching
+  store FILE [FILE...]    put a file away
+  rss URL                 smart torrent download
 
 END
 }
