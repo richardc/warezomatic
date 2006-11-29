@@ -17,17 +17,18 @@ sub shows {
     my $self = shift;
 
     my @shows = map {
-        my $data = eval { YAML::LoadFile( "$_/wm.conf" ) } || {};
+        my $conf = "$_/wm.conf";
+        my $data = -e $conf ? YAML::LoadFile( $conf ) : {};
         +{
-            show => lc basename $_,
             path => $_,
+            show => lc basename( $_ ),
             %$data
-        }
+        };
     } find directory => mindepth => 1, maxdepth => 1, in => $self->config->{archive};
 
     my %shows;
     # allow for aliases
-    for my $extra (grep { $_->{aka} } values %shows) {
+    for my $extra (grep { $_->{aka} } @shows) {
         $shows{$_} = $extra for @{ $extra->{aka} };
     }
     # but the directory wins
@@ -46,7 +47,9 @@ sub command_id {
 
 sub command_list {
     my $self = shift;
-    for my $show ($self->shows) {
+    my %shows = $self->shows;
+    print Dump \%shows;
+    for my $show (values %shows) {
         print $show->{show};
         if ($show->{aka}) {
             print "\t(aka: ", join(', ', @{ $show->{aka} } ), ")"
