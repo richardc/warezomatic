@@ -15,12 +15,24 @@ sub config {
 
 sub shows {
     my $self = shift;
-    return map {
-        my $show = eval { YAML::LoadFile( "$_/wm.conf" ) } || {};
-        $show->{show} = lc basename $_;
-        $show->{path} = $_;
-        $show
+
+    my @shows = map {
+        my $data = eval { YAML::LoadFile( "$_/wm.conf" ) } || {};
+        +{
+            show => lc basename $_,
+            path => $_,
+            %$data
+        }
     } find directory => mindepth => 1, maxdepth => 1, in => $self->config->{archive};
+
+    my %shows;
+    # allow for aliases
+    for my $extra (grep { $_->{aka} } values %shows) {
+        $shows{$_} = $extra for @{ $extra->{aka} };
+    }
+    # but the directory wins
+    $shows{ $_->{show} } = $_ for @shows;
+    return %shows;
 }
 
 sub command_id {
@@ -46,11 +58,7 @@ sub command_list {
 sub command_store {
     my $self = shift;
 
-    my %shows = map { $_->{show} => $_  } $self->shows;
-    for my $extra (grep { $_->{aka} } values %shows) {
-        $shows{$_} = $extra for @{ $extra->{aka} };
-    }
-
+    my %shows = $self->shows;
     #print Dump \%shows;
 
     for my $file (@_) {
@@ -80,7 +88,33 @@ sub command_store {
     }
 }
 
+sub normalise_name {
+    my $self = shift;
+    my $show = shift or return '';
+    return sprintf "%s.s%02de%02d", $show->{show}, $show->{season}, $show->{episode};
+}
+
 sub command_rss {
+    my $self = shift;
+    my $url = shift;
+    my $rss = get $url or die "$url didn't give me nothing\n";
+
+    my %shows = $self->shows;
+    my %i_have = map {
+        $self->normalise_name( identify $_ ) => 1
+    } find in => [ $self->config->{archive}, $self->config->{download} ];
+
+    for my $torrent ( $rss =~ m{<link>(.*?)</link>}g ) {
+        my $show = identify $torrent or next;
+        my $normalised = $self->normalise_name( $show );
+
+        next unless $shows{ $show->{show} }; # don't watch it
+        next if $i_have{ $normalised };      # i have it
+        print "$normalised from $torrent\n";
+        my $path = $self->config->{download} . "/rss/" . basename $torrent;
+        mkdir dirname $path;
+        mirror $torrent, $path or unlink $path;
+    }
 }
 
 
