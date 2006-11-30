@@ -48,7 +48,7 @@ sub command_id {
 sub command_list {
     my $self = shift;
     my %shows = $self->shows;
-    print Dump \%shows;
+    #print Dump \%shows;
     for my $show (values %shows) {
         print $show->{show};
         if ($show->{aka}) {
@@ -84,8 +84,8 @@ sub command_store {
           or die "rename failed: $!";
         if ($self->config->{queue} && !$ENV{NOLINK}) {
             my $queue = $self->config->{queue} . "/" . basename $name;
-            print "$path => $queue\n";
-            symlink $path, $queue
+            print "$name => $queue\n";
+            symlink $name, $queue
               or die "symlink failed: $!:";
         }
     }
