@@ -70,10 +70,12 @@ sub command_store {
         my $show = $shows{ $episode->{show} }
           or do { print "I don't seem to track $episode->{show}\n"; next; };
 
-        my $name = sprintf( "%s/season_%02d/%s.s%02de%02d%s",
-                            $show->{path}, $episode->{season},
+        my $name = sprintf( "%s.s%02de%02d%s",
                             $show->{show}, $episode->{season},
                             $episode->{episode}, $episode->{extra} );
+        $name =~ s{ }{.}g; # spaces to dots
+        $name = sprintf "%s/season_%02d/%s", $show->{path}, $episode->{season}, $name;
+
         print "$file -> $name\n";
 
         my $path = dirname $name;
