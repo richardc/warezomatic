@@ -1,4 +1,4 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-exec 'wc', 'store', @ARGV;
+exec 'wm', 'store', @ARGV;
