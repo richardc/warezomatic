@@ -48,14 +48,16 @@ sub command_id {
 sub command_list {
     my $self = shift;
     my %shows = $self->shows;
-    #print Dump \%shows;
-    for my $show (values %shows) {
+    for my $name (sort keys %shows) {
+        my $show = $shows{ $name };
+        next unless $show->{show} eq $name;
         print $show->{show};
         if ($show->{aka}) {
             print "\t(aka: ", join(', ', @{ $show->{aka} } ), ")"
         }
         print "\n";
     }
+    #print Dump \%shows;
 }
 
 sub command_store {
@@ -110,12 +112,14 @@ sub command_rss {
     } find in => [ $self->config->{archive}, $self->config->{download} ];
 
     for my $torrent ( $rss =~ m{<link>(.*?)</link>}g ) {
-        my $show = identify $torrent or next;
-        my $normalised = $self->normalise_name( $show );
+        my $ep = identify $torrent or next;
 
-        next unless $shows{ $show->{show} }; # don't watch it
-        next if $i_have{ $normalised };      # i have it
-        print "$normalised from $torrent\n";
+        next unless $shows{ $ep->{show} }; # don't watch it
+        my $canon_show = $shows{ $ep->{show} }{show};
+        my $name = $self->normalise_name( { %$ep, show => $canon_show } );
+
+        next if $i_have{ $name };      # i have it
+        print "$name from $torrent\n";
         my $path = $self->config->{download} . "/rss/" . basename $torrent;
         mkdir dirname $path;
         mirror $torrent, $path or unlink $path;
