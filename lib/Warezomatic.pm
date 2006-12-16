@@ -112,12 +112,14 @@ sub command_rss {
     } find in => [ $self->config->{archive}, $self->config->{download} ];
 
     for my $torrent ( $rss =~ m{<link>(.*?)</link>}g ) {
+        print "$torrent\n" if $ENV{WM_DEBUG};
         my $ep = identify $torrent or next;
 
         next unless $shows{ $ep->{show} }; # don't watch it
         my $canon_show = $shows{ $ep->{show} }{show};
         my $name = $self->normalise_name( { %$ep, show => $canon_show } );
 
+        print " => $name\n" if $ENV{WM_DEBUG};
         next if $i_have{ $name };      # i have it
         print "$name from $torrent\n";
         my $path = $self->config->{download} . "/rss/" . basename $torrent;
