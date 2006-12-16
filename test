@@ -1,0 +1,27 @@
+#!perl
+use strict;
+use warnings;
+use lib qw( lib );
+use Warez::Identify qw( identify );
+use YAML;
+
+my @files = @ARGV ? @ARGV : <DATA>;
+chomp @files;
+for my $file (@files) {
+    my $guess = identify $file;
+    print Dump { file => $file, guess => $guess };
+}
+
+__DATA__
+Weeds.S02E01.avi
+WeedsS2E2.avi
+Weeds-Preair-S02E04.avi
+weeds.211.hdtv.xvid-kyr.avi
+weeds.212.hdtv-lol.avi
+weeds.s02e05.hdtv.xvid-hv.[VTV].avi
+weeds.s02e08.hdtv.xvid-hv.avi
+weeds.s02e09.hdtv.xvid-kyr.[VTV].avi
+weeds.s02e10.hdtv.xvid-notv.avi
+weeds - 208 - the one with the pony.avi
+i won't match.avi
+weeds s2 ep11.avi
