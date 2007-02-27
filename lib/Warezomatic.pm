@@ -124,7 +124,11 @@ sub command_rss {
         print "$name from $torrent\n";
         my $path = $self->config->{download} . "/rss/" . basename $torrent;
         mkdir dirname $path;
-        mirror $torrent, $path or unlink $path;
+        my $rc = mirror $torrent, $path;
+        unless (is_success($rc)) {
+            print "Error: $rc ", status_message($rc), "\n";
+            unlink $path;
+        }
     }
 }
 
