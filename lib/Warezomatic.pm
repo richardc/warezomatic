@@ -101,6 +101,19 @@ sub normalise_name {
     return sprintf "%s.s%02de%02d", $show->{show}, $show->{season}, $show->{episode};
 }
 
+sub _parse_torrents {
+    my $rss = shift;
+    my @matches;
+    for my $link ($rss =~ m{<link>(.*?)</link>}g) {
+        my $filename = basename $link;
+        push @matches, {
+            url      => $link,
+            filename => $filename,
+        };
+    }
+    return @matches;
+}
+
 sub command_rss {
     my $self = shift;
     my $url = shift;
@@ -111,9 +124,11 @@ sub command_rss {
         $self->normalise_name( identify $_ ) => 1
     } find in => [ $self->config->{archive}, $self->config->{download} ];
 
-    for my $torrent ( $rss =~ m{<link>(.*?)</link>}g ) {
+    for my $parsed ( _parse_torrents( $rss ) ) {
+        my $torrent = $parsed->{url};
+        my $filename = $parsed->{filename};
         print "$torrent\n" if $ENV{WM_DEBUG};
-        my $ep = identify $torrent or next;
+        my $ep = identify $filename or next;
 
         next unless $shows{ $ep->{show} }; # don't watch it
         my $canon_show = $shows{ $ep->{show} }{show};
@@ -121,8 +136,8 @@ sub command_rss {
 
         print " => $name\n" if $ENV{WM_DEBUG};
         next if $i_have{ $name };      # i have it
-        print "$name from $torrent\n";
-        my $path = $self->config->{download} . "/rss/" . basename $torrent;
+        print "$name from $filename\n";
+        my $path = $self->config->{download} . "/rss/$filename";
         mkdir dirname $path;
         my $rc = mirror $torrent, $path;
         unless (is_success($rc)) {
@@ -131,7 +146,6 @@ sub command_rss {
         }
     }
 }
-
 
 sub command_help {
     my $self = shift;
