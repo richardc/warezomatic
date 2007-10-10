@@ -101,7 +101,7 @@ sub normalise_name {
     return sprintf "%s.s%02de%02d", $show->{show}, $show->{season}, $show->{episode};
 }
 
-sub _parse_torrents {
+sub _parse_tpb_rss {
     my $rss = shift;
     my @matches;
     for my $link ($rss =~ m{<link>(.*?)</link>}g) {
@@ -114,17 +114,40 @@ sub _parse_torrents {
     return @matches;
 }
 
+sub _parse_tvrss_rss {
+    my $rss = shift;
+    my @matches;
+    
+    while ($rss =~ m{<description>(.*?)</description><enclosure url="(.*?)"}g) {
+        push @matches, {
+            url => $2,
+            filename => "$1.torrent",
+        };
+    }
+    return @matches;
+}
+
+sub _parse_rss {
+    my $rss = shift;
+    if ($rss =~ m{<title>tvRSS -}) {
+        return _parse_tvrss_rss( $rss );
+    }
+    return _parse_tpb_rss( $rss );
+}
+
 sub command_rss {
     my $self = shift;
     my $url = shift;
     my $rss = get $url or die "$url didn't give me nothing\n";
+    my @torrents = _parse_rss($rss);
+    #die Dump \@torrents;
 
     my %shows = $self->shows;
     my %i_have = map {
         $self->normalise_name( identify $_ ) => 1
     } find in => [ $self->config->{archive}, $self->config->{download} ];
 
-    for my $parsed ( _parse_torrents( $rss ) ) {
+    for my $parsed ( @torrents ) {
         my $torrent = $parsed->{url};
         my $filename = $parsed->{filename};
         print "$torrent\n" if $ENV{WM_DEBUG};
