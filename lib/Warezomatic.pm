@@ -159,7 +159,7 @@ sub command_rss {
 
         print " => $name\n" if $ENV{WM_DEBUG};
         next if $i_have{ $name };      # i have it
-        print "$name from $filename\n";
+        print "$name ($filename) from $url\n";
         my $path = $self->config->{download} . "/rss/$filename";
         mkdir dirname $path;
         my $rc = mirror $torrent, $path;
