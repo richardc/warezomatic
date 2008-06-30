@@ -1,0 +1,15 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use File::Basename qw( basename );
+
+for my $file (@ARGV) {
+    my $to = '/mu/video/movies/' . basename $file;
+    print "$file -> $to\n";
+    rename $file, $to
+      or die $!;
+    my $link = '/mu/video/00_queue/' . basename $file;
+    print "  $to => $link\n";
+    symlink $to, $link
+      or die $!;
+}
