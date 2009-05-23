@@ -9,8 +9,11 @@ sub identify {
     my $path = shift;
     my $file = basename $path;
 
-    my ($show, $ep, $extra) = $file =~ m{^(.*?)(\d{3,}|s\d+[_\s]*ep?\d+|\d+x\d+)(.*)}i
-      or return;
+    my ($show, $ep, $extra) = $file =~ m{
+      ^ ( [^\d]+ \d{4} [\.\s] | .*? )           # show
+        ( \d{3,} | s\d+[_\s]*ep?\d+ | \d+x\d+ ) # episode
+        ( .* )                                  # leftovers
+    }ix or return;
     $show =~ s{[_\.]}{ }g; # dots or underscores for spaces is common
     $show =~ s{\s*$}{};    # but also as seperators
     $show =~ s{\s+-$}{};   # trailing hypens are probably delimiters
