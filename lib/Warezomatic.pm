@@ -127,10 +127,26 @@ sub _parse_tvrss_rss {
     return @matches;
 }
 
+sub _parse_btchat_rss {
+    my $rss = shift;
+    my @matches;
+
+    while ($rss =~ m{<item>\s+<title>(.*?)</title>.*?<link>(.*?)</link>}gsm) {
+        push @matches, {
+            url => $2,
+            filename => $1,
+        };
+    }
+    return @matches;
+}
+
 sub _parse_rss {
     my $rss = shift;
     if ($rss =~ m{<title>tvRSS -}) {
         return _parse_tvrss_rss( $rss );
+    }
+    if ($rss =~ m{<title>BT-Chat}) {
+        return _parse_btchat_rss( $rss );
     }
     return _parse_tpb_rss( $rss );
 }
