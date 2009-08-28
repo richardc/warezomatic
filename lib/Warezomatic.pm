@@ -104,6 +104,9 @@ sub normalise_name {
 sub _parse_tpb_rss {
     my $rss = shift;
     my @matches;
+
+
+    print "parsing as tpb\n" if $ENV{WM_DEBUG};
     for my $link ($rss =~ m{<link>(.*?)</link>}g) {
         my $filename = basename $link;
         push @matches, {
@@ -118,7 +121,22 @@ sub _parse_tvrss_rss {
     my $rss = shift;
     my @matches;
     
+    print "parsing as tvrss\n" if $ENV{WM_DEBUG};
     while ($rss =~ m{<description>(.*?)</description><enclosure url="(.*?)"}g) {
+        push @matches, {
+            url => $2,
+            filename => "$1.torrent",
+        };
+    }
+    return @matches;
+}
+
+sub _parse_mininova_rss {
+    my $rss = shift;
+    my @matches;
+    
+    print "parsing as mininova\n" if $ENV{WM_DEBUG};
+    while ($rss =~ m{<title>(.*?)</title><guid isPermaLink='true'>(.*?)</guid>}g) {
         push @matches, {
             url => $2,
             filename => "$1.torrent",
@@ -131,6 +149,7 @@ sub _parse_btchat_rss {
     my $rss = shift;
     my @matches;
 
+    print "parsing as btchat\n" if $ENV{WM_DEBUG};
     while ($rss =~ m{<item>\s+<title>(.*?)</title>.*?<link>(.*?)</link>}gsm) {
         push @matches, {
             url => $2,
@@ -142,6 +161,9 @@ sub _parse_btchat_rss {
 
 sub _parse_rss {
     my $rss = shift;
+    if ($rss =~ m{Mininova}) {
+        return _parse_mininova_rss( $rss );
+    }
     if ($rss =~ m{<title>tvRSS -}) {
         return _parse_tvrss_rss( $rss );
     }
@@ -166,7 +188,7 @@ sub command_rss {
     for my $parsed ( @torrents ) {
         my $torrent = $parsed->{url};
         my $filename = $parsed->{filename};
-        print "$torrent\n" if $ENV{WM_DEBUG};
+        print "$torrent $filename\n" if $ENV{WM_DEBUG};
         my $ep = identify $filename or next;
 
         next unless $shows{ $ep->{show} }; # don't watch it
