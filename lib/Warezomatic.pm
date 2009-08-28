@@ -136,7 +136,7 @@ sub _parse_mininova_rss {
     my @matches;
     
     print "parsing as mininova\n" if $ENV{WM_DEBUG};
-    while ($rss =~ m{<title>(.*?)</title><guid isPermaLink='true'>(.*?)</guid>}g) {
+    while ($rss =~ m{<title>(.*?)</title>.*?<enclosure url="(.*?)"}g) {
         push @matches, {
             url => $2,
             filename => "$1.torrent",
