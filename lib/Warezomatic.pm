@@ -194,6 +194,19 @@ sub _parse_btjunkie_rss {
     return @matches;
 }
 
+sub _parse_kickass_rss {
+    my $rss = shift;
+    my @matches;
+
+    print "parsing as kickass\n" if $ENV{WM_DEBUG};
+    while ($rss =~ m{<item>\s+<title>(.*?)</title>.*?<torrentLink>(.*?)</torrentLink>}gsm) {
+        push @matches, {
+            url => $2,
+            filename => $1,
+        };
+    }
+    return @matches;
+}
 
 sub _parse_rss {
     my $rss = shift;
@@ -211,6 +224,9 @@ sub _parse_rss {
     }
     if ($rss =~ m{ExtraTorrent}) {
         return _parse_extratorrent_rss( $rss );
+    }
+    if ($rss =~ m{KickassTorrents}i) {
+        return _parse_kickass_rss( $rss );
     }
     return _parse_tpb_rss( $rss );
 }
@@ -232,8 +248,10 @@ sub command_rss {
         my $filename = $parsed->{filename};
         print Dump $parsed if $ENV{WM_DEBUG};
         my $ep = identify $filename or next;
-
+        print Dump $ep if $ENV{WM_DEBUG};
+        
         next unless $shows{ $ep->{show} }; # don't watch it
+        print "I watch $canon_show!\n"; if $ENV{WM_DEBUG};
         my $canon_show = $shows{ $ep->{show} }{show};
         my $name = $self->normalise_name( { %$ep, show => $canon_show } );
 
