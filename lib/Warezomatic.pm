@@ -153,6 +153,12 @@ my @parsers = (
             $_->{filename} =~ s{\+}{ }g;
         },
     },
+    {
+        name => "yourBittorrent.com",
+        identify => qr{<title>yourBittorrent.com},
+        extract => qr{<item>\s+<title>(?<filename>.*?)</title>.*?<link>(?<url>.*?)</link>}sm,
+        fixup => sub { $_->{filename} .= ".torrent" },
+    },
 );
 
 sub _parse_rss {
