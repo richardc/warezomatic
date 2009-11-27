@@ -131,6 +131,23 @@ sub _parse_tvrss_rss {
     return @matches;
 }
 
+sub _parse_extratorrent_rss {
+    my $rss = shift;
+    my @matches;
+    
+    print "parsing as extratorrent\n" if $ENV{WM_DEBUG};
+    while ($rss =~ m{<enclosure url="(.*?)"}g) {
+        my $url = $1;
+	my $filename = basename $url;
+	$filename =~ s{\+}{ }g;
+        push @matches, {
+            url => $url,
+            filename => $filename,
+        };
+    }
+    return @matches;
+}
+
 sub _parse_mininova_rss {
     my $rss = shift;
     my @matches;
@@ -191,6 +208,9 @@ sub _parse_rss {
     }
     if ($rss =~ m{<title>BTJunkie}) {
         return _parse_btjunkie_rss( $rss );
+    }
+    if ($rss =~ m{ExtraTorrent}) {
+        return _parse_extratorrent_rss( $rss );
     }
     return _parse_tpb_rss( $rss );
 }
