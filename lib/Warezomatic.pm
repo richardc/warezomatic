@@ -159,6 +159,25 @@ sub _parse_btchat_rss {
     return @matches;
 }
 
+sub _parse_btjunkie_rss {
+    my $rss = shift;
+    my @matches;
+
+    print "parsing as btjunkie\n" if $ENV{WM_DEBUG};
+    while ($rss =~ m{<item>\s+<title>(.*?)</title>.*?<link>(.*?)</link>}gsm) {
+	my $filename = $1;
+	my $url = $2;
+	$filename =~ s{\s*\[\d+/\d+\]$}{};
+	$filename .= '.torrent';
+        push @matches, {
+            url      => $url,
+            filename => $filename,
+        };
+    }
+    return @matches;
+}
+
+
 sub _parse_rss {
     my $rss = shift;
     if ($rss =~ m{Mininova}) {
@@ -169,6 +188,9 @@ sub _parse_rss {
     }
     if ($rss =~ m{<title>BT-Chat}) {
         return _parse_btchat_rss( $rss );
+    }
+    if ($rss =~ m{<title>BTJunkie}) {
+        return _parse_btjunkie_rss( $rss );
     }
     return _parse_tpb_rss( $rss );
 }
@@ -188,7 +210,7 @@ sub command_rss {
     for my $parsed ( @torrents ) {
         my $torrent = $parsed->{url};
         my $filename = $parsed->{filename};
-        print "$torrent $filename\n" if $ENV{WM_DEBUG};
+        print Dump $parsed if $ENV{WM_DEBUG};
         my $ep = identify $filename or next;
 
         next unless $shows{ $ep->{show} }; # don't watch it
