@@ -7,6 +7,7 @@ use Warez::Identify;
 use File::Find::Rule;
 use LWP::Simple;
 use base qw( Class::Accessor );
+use 5.10.0; # we use the 5.10 named regex capture stuff
 
 sub config {
     my $self = shift;
@@ -101,141 +102,80 @@ sub normalise_name {
     return sprintf "%s.s%02de%02d", $show->{show}, $show->{season}, $show->{episode};
 }
 
-sub _parse_tpb_rss {
-    my $rss = shift;
-    my @matches;
 
-
-    print "parsing as tpb\n" if $ENV{WM_DEBUG};
-    for my $link ($rss =~ m{<link>(.*?)</link>}g) {
-        my $filename = basename $link;
-        push @matches, {
-            url      => $link,
-            filename => $filename,
-        };
-    }
-    return @matches;
-}
-
-sub _parse_tvrss_rss {
-    my $rss = shift;
-    my @matches;
-    
-    print "parsing as tvrss\n" if $ENV{WM_DEBUG};
-    while ($rss =~ m{<description>(.*?)</description><enclosure url="(.*?)"}g) {
-        push @matches, {
-            url => $2,
-            filename => "$1.torrent",
-        };
-    }
-    return @matches;
-}
-
-sub _parse_extratorrent_rss {
-    my $rss = shift;
-    my @matches;
-    
-    print "parsing as extratorrent\n" if $ENV{WM_DEBUG};
-    while ($rss =~ m{<enclosure url="(.*?)"}g) {
-        my $url = $1;
-	my $filename = basename $url;
-	$filename =~ s{\+}{ }g;
-        push @matches, {
-            url => $url,
-            filename => $filename,
-        };
-    }
-    return @matches;
-}
-
-sub _parse_mininova_rss {
-    my $rss = shift;
-    my @matches;
-    
-    print "parsing as mininova\n" if $ENV{WM_DEBUG};
-    while ($rss =~ m{<title>(.*?)</title>.*?<enclosure url="(.*?)"}g) {
-        push @matches, {
-            url => $2,
-            filename => "$1.torrent",
-        };
-    }
-    return @matches;
-}
-
-sub _parse_btchat_rss {
-    my $rss = shift;
-    my @matches;
-
-    print "parsing as btchat\n" if $ENV{WM_DEBUG};
-    while ($rss =~ m{<item>\s+<title>(.*?)</title>.*?<link>(.*?)</link>}gsm) {
-        push @matches, {
-            url => $2,
-            filename => $1,
-        };
-    }
-    return @matches;
-}
-
-sub _parse_btjunkie_rss {
-    my $rss = shift;
-    my @matches;
-
-    print "parsing as btjunkie\n" if $ENV{WM_DEBUG};
-    while ($rss =~ m{<item>\s+<title>(.*?)</title>.*?<link>(.*?)</link>}gsm) {
-	my $filename = $1;
-	my $url = $2;
-	$filename =~ s{\s*\[\d+/\d+\]$}{};
-	$filename .= '.torrent';
-        push @matches, {
-            url      => $url,
-            filename => $filename,
-        };
-    }
-    return @matches;
-}
-
-sub _parse_kickass_rss {
-    my $rss = shift;
-    my @matches;
-
-    print "parsing as kickass\n" if $ENV{WM_DEBUG};
-    while ($rss =~ m{<item>\s+<title>(.*?)</title>.*?<torrentLink>(.*?)</torrentLink>}gsm) {
-        push @matches, {
-            url => $2,
-            filename => $1,
-        };
-    }
-    return @matches;
-}
+# data-driven regex 'parser'.  ugly but many sites emit invalid XML as RSS.
+# the extract regex should extract 'filename' and 'url' keys.  If sanitising
+# of this is needed it should be in the fixup sub
+my @parsers = (
+    {
+        name => "The Pirate Bay",
+        identify => qr{The Pirate Bay RSS},
+        extract  => qr{<link>(?<url>.*?)</link>},
+        fixup    => sub { $_->{filename} = basename $_->{url} },
+    },
+    {
+        name => "TVRSS.net",
+        identify => qr{<title>tvRSS -},
+        extract  => qr{<description>(?<filename>.*?)</description><enclosure url="(<?url>.*?)"},
+        fixup    => sub { $_->{filename} .= ".torrent" },
+    },
+    {
+        name => "Mininova",
+        identify => qr{Mininova},
+        extract => qr{<title>(?<filename>.*?)</title>.*?<enclosure url="(?<url>.*?)"},        
+        fixup    => sub { $_->{filename} .= ".torrent" },
+    },
+    {
+        name => "BT-Chat",
+        identify => qr{<title>BT-Chat},
+        extract => qr{<item>\s+<title>(?<filename>.*?)</title>.*?<link>(?<url>.*?)</link>}sm
+    },
+    {
+        name => "BTJunkie",
+        identify => qr{<title>BTJunkie},
+        extract =>  qr{<item>\s+<title>(?<filename>.*?)</title>.*?<link>(?<url>.*?)</link>}sm,
+        fixup   => sub {
+            $_->{filename} =~ s{\s*\[\d+/\d+\]$}{};
+            $_->{filename} .= '.torrent';
+        },
+    },
+    {
+        name     => "KickassTorrents",
+        identify => qr{KickassTorrents}i,
+        extract => qr{<item>\s+<title>(?<filename>.*?)</title>.*?<torrentLink>(?<url>.*?)</torrentLink>}sm,
+    },
+    {
+        name => "ExtraTorrent",
+        identify => qr{ExtraTorrent},
+        extract => qr{<enclosure url="(?<url>.*?)"},
+        fixup => sub { 
+            $_->{filename} = basename $_->{url};
+            $_->{filename} =~ s{\+}{ }g;
+        },
+    },
+);
 
 sub _parse_rss {
+    my $self = shift;
     my $rss = shift;
-    if ($rss =~ m{Mininova}) {
-        return _parse_mininova_rss( $rss );
+    my @matches;
+
+    my ($parser) = grep { $rss =~ $_->{identify} } @parsers;
+    $parser ||= $parsers[0];
+    print "Parsing as $parser->{name}\n" if $ENV{WM_DEBUG};
+    while ($rss =~ m{$parser->{extract}}g) {
+        local $_ = {%+};
+        $parser->{fixup}->($_) if $parser->{fixup};
+        push @matches, $_;
     }
-    if ($rss =~ m{<title>tvRSS -}) {
-        return _parse_tvrss_rss( $rss );
-    }
-    if ($rss =~ m{<title>BT-Chat}) {
-        return _parse_btchat_rss( $rss );
-    }
-    if ($rss =~ m{<title>BTJunkie}) {
-        return _parse_btjunkie_rss( $rss );
-    }
-    if ($rss =~ m{ExtraTorrent}) {
-        return _parse_extratorrent_rss( $rss );
-    }
-    if ($rss =~ m{KickassTorrents}i) {
-        return _parse_kickass_rss( $rss );
-    }
-    return _parse_tpb_rss( $rss );
+    return @matches;
 }
 
 sub command_rss {
     my $self = shift;
     my $url = shift;
     my $rss = get $url or die "$url didn't give me nothing\n";
-    my @torrents = _parse_rss($rss);
+    my @torrents = $self->_parse_rss($rss);
     #die Dump \@torrents;
 
     my %shows = $self->shows;
@@ -251,7 +191,6 @@ sub command_rss {
         print Dump $ep if $ENV{WM_DEBUG};
         
         next unless $shows{ $ep->{show} }; # don't watch it
-        print "I watch $canon_show!\n"; if $ENV{WM_DEBUG};
         my $canon_show = $shows{ $ep->{show} }{show};
         my $name = $self->normalise_name( { %$ep, show => $canon_show } );
 
