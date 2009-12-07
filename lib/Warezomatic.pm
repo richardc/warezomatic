@@ -159,6 +159,15 @@ my @parsers = (
         extract => qr{<item>\s+<title>(?<filename>.*?)</title>.*?<link>(?<url>.*?)</link>}sm,
         fixup => sub { $_->{filename} .= ".torrent" },
     },
+    {
+        name => "ShowRSS",
+        identify => qr{showrss},
+        extract  => qr{<link>(?<url>.*?)</link>},
+        fixup    => sub {
+	    $_->{url} =~ s{(%([0-9a-f][0-9a-f]))}{ chr hex $2 }eig;
+	    $_->{filename} = basename $_->{url};
+        },
+    },
 );
 
 sub _parse_rss {
@@ -167,7 +176,7 @@ sub _parse_rss {
     my @matches;
 
     my ($parser) = grep { $rss =~ $_->{identify} } @parsers;
-    $parser ||= $parsers[0];
+    die "couldn't pick a parser\n" unless $parser;
     print "Parsing as $parser->{name}\n" if $ENV{WM_DEBUG};
     while ($rss =~ m{$parser->{extract}}g) {
         local $_ = {%+};
