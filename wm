@@ -1,6 +1,6 @@
-#!/home/richardc/hck/perl-5.10.1/bin/perl
+#!/home/richardc/perl5/perlbrew/perls/perl-5.12.2/bin/perl
 use strict;
 use warnings;
-use lib qw( /home/richardc/lab/Warezomatic/lib );
+use lib qw( /home/richardc/hck/Warezomatic/lib );
 use Warezomatic;
 Warezomatic->new->run( @ARGV );
