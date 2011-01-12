@@ -90,8 +90,8 @@ sub command_store {
         if ($self->config->{queue} && !$ENV{NOLINK}) {
             my $queue = $self->config->{queue} . "/" . basename $name;
             print "$name => $queue\n";
-            symlink $name, $queue
-              or die "symlink failed: $!:";
+            link $name, $queue
+              or die "link failed: $!:";
         }
     }
 }
@@ -167,6 +167,12 @@ my @parsers = (
 	    $_->{url} =~ s{(%([0-9a-f][0-9a-f]))}{ chr hex $2 }eig;
 	    $_->{filename} = basename $_->{url};
         },
+    },
+    {
+        name => "EZTV",
+        identify => qr{<title>ezRSS},
+        extract  => qr{<item>\s+<title>(?<filename>.*?)</title>.*?<link>(?<url>.*?)</link>}sm,
+	fixup    => sub { $_->{filename} = basename $_->{url} },
     },
 );
 
