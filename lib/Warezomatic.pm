@@ -162,10 +162,10 @@ my @parsers = (
     {
         name => "ShowRSS",
         identify => qr{showrss},
-        extract  => qr{<link>(?<url>.*?)</link>},
+        extract  => qr{<title>(?<filename>.*?)</title><link>(?<url>.*?)</link>},
         fixup    => sub {
 	    $_->{url} =~ s{(%([0-9a-f][0-9a-f]))}{ chr hex $2 }eig;
-	    $_->{filename} = basename $_->{url};
+	    $_->{filename} .= ".torrent";
         },
     },
     {
