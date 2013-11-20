@@ -1,4 +1,4 @@
-#!/home/richardc/perl5/perlbrew/perls/perl-5.12.2/bin/perl
+#!/usr/bin/perl
 use strict;
 use warnings;
 use lib qw( /home/richardc/hck/Warezomatic/lib );
