@@ -6,6 +6,7 @@ use File::Basename qw( basename dirname );
 use Warez::Identify;
 use File::Find::Rule;
 use LWP::Simple;
+use HTML::Entities qw( decode_entities );
 use base qw( Class::Accessor );
 use 5.10.0; # we use the 5.10 named regex capture stuff
 
@@ -109,9 +110,17 @@ sub normalise_name {
 my @parsers = (
     {
         name => "The Pirate Bay",
-        identify => qr{The Pirate Bay RSS},
-        extract  => qr{<link>(?<url>.*?)</link>},
-        fixup    => sub { $_->{filename} = basename $_->{url} },
+        identify => qr{The Pirate Bay},
+        extract  => qr{<item>\s+<title><!\[CDATA\[(?<filename>.*?)\]\]></title>\s+<link>(?<url>.*?)</link>}sm,
+        fixup    => sub {
+            $_->{filename} .= ".torrent";
+            $_->{url} = decode_entities($_->{url});
+            $_->{url} .= "&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80";
+            $_->{url} .= "&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80";
+            $_->{url} .= "&tr=udp%3A%2F%2Ftracker.istole.it%3A6969";
+            $_->{url} .= "&tr=udp%3A%2F%2Ftracker.ccc.de%3A80";
+            $_->{url} .= "&tr=udp%3A%2F%2Fopen.demonii.com%3A1337";
+        },
     },
     {
         name => "TVRSS.net",
@@ -122,7 +131,7 @@ my @parsers = (
     {
         name => "Mininova",
         identify => qr{Mininova},
-        extract => qr{<title>(?<filename>.*?)</title>.*?<enclosure url="(?<url>.*?)"},        
+        extract => qr{<title>(?<filename>.*?)</title>.*?<enclosure url="(?<url>.*?)"},
         fixup    => sub { $_->{filename} .= ".torrent" },
     },
     {
@@ -148,7 +157,7 @@ my @parsers = (
         name => "ExtraTorrent",
         identify => qr{ExtraTorrent},
         extract => qr{<enclosure url="(?<url>.*?)"},
-        fixup => sub { 
+        fixup => sub {
             $_->{filename} = basename $_->{url};
             $_->{filename} =~ s{\+}{ }g;
         },
@@ -164,15 +173,15 @@ my @parsers = (
         identify => qr{showrss},
         extract  => qr{<title>(?<filename>.*?)</title><link>(?<url>.*?)</link>},
         fixup    => sub {
-	    $_->{url} =~ s{(%([0-9a-f][0-9a-f]))}{ chr hex $2 }eig;
-	    $_->{filename} .= ".torrent";
+            $_->{url} =~ s{(%([0-9a-f][0-9a-f]))}{ chr hex $2 }eig;
+            $_->{filename} .= ".torrent";
         },
     },
     {
         name => "EZTV",
         identify => qr{<title>ezRSS},
         extract  => qr{<item>\s+<title>(?<filename>.*?)</title>.*?<link>(?<url>.*?)</link>}sm,
-	fixup    => sub { $_->{filename} = basename $_->{url} },
+        fixup    => sub { $_->{filename} = basename $_->{url} },
     },
 );
 
@@ -210,7 +219,7 @@ sub command_rss {
         print Dump $parsed if $ENV{WM_DEBUG};
         my $ep = identify $filename or next;
         print Dump $ep if $ENV{WM_DEBUG};
-        
+
         next unless $shows{ $ep->{show} }; # don't watch it
         my $canon_show = $shows{ $ep->{show} }{show};
         my $name = $self->normalise_name( { %$ep, show => $canon_show } );
@@ -220,10 +229,20 @@ sub command_rss {
         print "$name ($filename) from $torrent\n";
         my $path = $self->config->{download} . "/rss/$filename";
         mkdir dirname $path;
-        my $rc = mirror $torrent, $path;
-        unless (is_success($rc)) {
-            print "Error: $rc ", status_message($rc), "\n";
-            unlink $path;
+        if ($torrent =~ /^magnet/) {
+            # write a magnet torrent
+            # https://wiki.archlinux.org/index.php/RTorrent#Saving_magnet_links_as_torrent_files_in_watch_folder
+
+            my $length = length($torrent);
+            open my $fh, ">", $path or die "Can't open file '$path': $!";
+            print {$fh} "d10:magnet-uri${length}:${torrent}e\n";
+        } else {
+            # download as url
+            my $rc = mirror $torrent, $path;
+            unless (is_success($rc)) {
+                print "Error: $rc ", status_message($rc), "\n";
+                unlink $path;
+            }
         }
     }
 }
