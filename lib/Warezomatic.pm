@@ -180,8 +180,7 @@ my @parsers = (
     {
         name => "EZTV",
         identify => qr{<title>ezRSS},
-        extract  => qr{<item>\s+<title>(?<filename>.*?)</title>.*?<link>(?<url>.*?)</link>}sm,
-        fixup    => sub { $_->{filename} = basename $_->{url} },
+        extract  => qr{<item>.*?<link>(?<url>.*?)</link>.*?<torrent.*?>\s+<fileName><!\[CDATA\[(?<filename>.*?)\]\]></fileName>.*?</item>}sm,
     },
 );
 
