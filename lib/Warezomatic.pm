@@ -7,6 +7,7 @@ use Warez::Identify;
 use File::Find::Rule;
 use LWP::Simple;
 use HTML::Entities qw( decode_entities );
+use Set::IntSpan ();
 use base qw( Class::Accessor );
 use 5.10.0; # we use the 5.10 named regex capture stuff
 
@@ -35,6 +36,11 @@ sub shows {
     }
     # but the directory wins
     $shows{ $_->{show} } = $_ for @shows;
+
+    # HACK - these aren't shows
+    delete $shows{'00_queue'};
+    delete $shows{'movies'};
+
     return %shows;
 }
 
@@ -60,6 +66,29 @@ sub command_list {
         print "\n";
     }
     #print Dump \%shows;
+}
+
+sub command_gaps {
+    my $self = shift;
+    my %shows = $self->shows;
+    for my $name (sort keys %shows) {
+        my $show = $shows{ $name };
+        # We only want the canon names
+        next unless $show->{show} eq $name;
+
+        my @have = map { identify $_ } find in => $show->{path};
+        my %seasons;
+        for my $episode (@have) {
+            push @{ $seasons{$episode->{season}} ||= [] }, $episode->{episode};
+        }
+        for my $season (sort keys %seasons) {
+            my $set = Set::IntSpan->new($seasons{ $season });
+            for my $missing ($set->holes->elements) {
+                my $episode = $self->normalise_name({ show => $name, season => $season, episode => $missing });
+                print "$episode\n";
+            }
+        }
+    }
 }
 
 sub command_store {
@@ -254,6 +283,7 @@ Warezomatic: because being lazy requires effort
 Commands:
   id                      guess to what a show is
   list                    list what shows we're watching
+  gaps                    report on any obvious gaps in the store
   store FILE [FILE...]    put a file away
   rss URL                 smart torrent download
 
